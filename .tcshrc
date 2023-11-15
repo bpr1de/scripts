@@ -1,0 +1,146 @@
+############################################################################
+#
+# .tcshrc
+#
+# Configuration file for tcsh.
+#
+############################################################################
+
+umask 27
+
+# Only run these if we're interactive
+if ( $?prompt ) then
+
+	#
+	# Special shell environment variables
+	#
+
+	unset autologout
+	unset ignoreeof
+
+	set prompt2 = ". "
+	set prompt3 = "{%R} [N/y/e/a] "
+	set autolist = ambiguous
+	set correct = cmd
+	set symlinks = expand
+	set time = 10
+
+	#
+	# Things to run with each command
+	#
+
+	# If id doesn't work, get the group with a pipeline
+	id -gn >& /dev/null
+	if ( ! $status ) then
+		alias grpcmd 'set grp=`id -gn`'
+	else
+		alias grpcmd 'set grp=`groups|cut -d\  -f1`'
+	endif
+	grpcmd
+	alias rpromptcmd 'setenv last_stat $status; set rprompt = "";' \
+		'if ( $last_stat ) set rprompt = "(%Breturned $last_stat%b)"'
+	# Note: the order here is important
+	alias precmd "rpromptcmd; grpcmd"
+
+	set history = 10000
+	set histdup = prev
+	set savehist = ( 10000 merge lock )
+	set fignore = ( .o .d CVS RCS )
+
+	#
+	# Shell completions
+	#
+	complete dd "c/*=/f/"
+	complete cd "p/1/d/"
+	complete man "p/*/c/"
+	complete \*/{init,rc}.d/\* "p/*/(start stop restart status)/"
+
+	# git, svn, cvs, p4 completions
+	set git_cmds = (add mv rm log show status branch checkout commit diff \
+			merge rebase fetch pull push stash annotate)
+	complete git "p/1/($git_cmds)/" "n/help/($git_cmds)/" \
+		'n/checkout/`branches.sh`/' "p/*/f/"
+	set svn_cmds = (add annotate cat checkout cleanup commit copy delete \
+			diff export help import info list lock log merge \
+			mkdir move propdel propedit propget proplist propset \
+			resolved revert status switch unlock update)
+	complete svn "p/1/($svn_cmds)/" "n/help/($svn_cmds)/" "p/*/f/"
+	set cvs_cmds = (add annotate checkout commit diff export history \
+			import log remove status tag update)
+	complete cvs "p/1/($cvs_cmds)/" "p/*/f/"
+	set p4_cmds = (add annotate branch branches change changes client \
+			clients delete describe diff diff2 dirs edit filelog \
+			files fstat help integrate login move opened print \
+			rename reopen resolve resolved revert shelve submit \
+			sync user unshelve interchanges)
+	complete p4 "p/1/($p4_cmds)/" "n/help/($p4_cmds)/" "p/*/f/"
+
+	# make can complete available targets
+	complete make n@-C@f@ 'p/1/`if ( -r Makefile ) sed -n "s@^\([-a-zA-Z0-9_]*\):@\1@p" Makefile`/'
+	complete gmake n@-C@f@ 'p/1/`if ( -r Makefile ) sed -n "s@^\([-a-zA-Z0-9_]*\):@\1@p" GNUMakefile`/'
+
+	# ftp programs can complete sites based on file contents
+	alias _ftpsites "(test -r ~/.ftpsites && cat ~/.ftpsites) ||" \
+		"echo localhost"
+	complete {nc,}ftp 'p/*/`_ftpsites`/'
+
+	#
+	# Terminal-specific stuff
+	#
+	switch ( $term )
+		case xterm*:
+		case screen:
+			set prompt = "%{^[]0;%n@%m $shlvl ($grp):%~%%^G%}% "
+			bindkey "[3~" delete-word
+			bindkey "^[d"	delete-word		# Escape-d
+			bindkey "^[s"	spell-word		# Escape-s
+			bindkey "^[S"	spell-line		# Escape-S
+			bindkey "\e[3~"	delete-char		# Delete
+			bindkey "[1;5D" beginning-of-line	# ^<-
+			bindkey "[1;5C" end-of-line		# ^->
+			breaksw
+		default:
+			set prompt = "(%n/$grp.$shlvl@%m) %~ %% "
+			breaksw
+	endsw
+
+	#
+	# Shell variables and aliases
+	#
+	setenv LINES
+	setenv COLUMNS
+	setenv PAGER less
+
+	alias rm "rm -i"
+	alias cp "cp -i"
+	alias mv "mv -i"
+	alias v "lsc -F"
+	alias vl "v -l"
+	alias vla "vl -A"
+	alias cvstat 'cvs status \!*|grep Status|grep -v Up-to-date'
+	alias search 'find \!:1 -path .svn -prune -o -type f \( -name \*.java -o -name \*.\[ch\] -o -name \*.hh -o -name \*.cc \) -exec grep -l \!:2 {} \;'
+
+	#
+	# For directory entry/exit command execution
+	# Note: cwdcmd will not work for this
+	#
+	alias _dirsource 'if (-o .dir_exit) source .dir_exit; ""\!*;' \
+	                 'if (-o .dir_enter) source .dir_enter'
+	alias cd '_dirsource \!!'
+	alias pushd '_dirsource \!!'
+	alias popd '_dirsource \!!'
+endif
+# Done with interactive commands
+
+#
+# Host-specific stuff
+#
+foreach i ( local $HOST )
+	set sfile = "~/.tcshrc.$i"
+	if ( -e $sfile ) then
+		if ( $?prompt ) then
+			echo "[sourced $sfile]"
+		endif
+		source $sfile
+	endif
+end
