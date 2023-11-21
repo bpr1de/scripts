@@ -117,6 +117,7 @@ if ( $?prompt ) then
 	alias v "lsc -F"
 	alias vl "v -l"
 	alias vla "vl -A"
+	alias less "less -R"
 	alias cvstat 'cvs status \!*|grep Status|grep -v Up-to-date'
 	alias search 'find \!:1 -path .svn -prune -o -type f \( -name \*.java -o -name \*.\[ch\] -o -name \*.hh -o -name \*.cc \) -exec grep -l \!:2 {} \;'
 
